@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .permission import IsSeller,IsBuyer,IsSellerUniqueuser
+from .pagination import Mypagenumberpagination
 from django.contrib.auth import authenticate, login,logout
 
 # Create your views here.
@@ -54,12 +55,14 @@ class LogoutView(views.APIView):
 class ProductView(APIView):
   authentication_classes = [SessionAuthentication]
   permission_classes = [IsSeller]
+  pagination_class = Mypagenumberpagination
   def get(self, request, pk=None, format=None):
     id = pk
     if id is not None:
        product = Product.objects.get(pk=id)
        serializer = ProductSerializer(product)
        return Response (serializer.data)
+       
         
     product = Product.objects.all()
     serializer = ProductSerializer(product,many=True)
