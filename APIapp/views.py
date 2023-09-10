@@ -107,6 +107,17 @@ class ProductView(APIView):
 class OrderView(APIView):
   authentication_classes = [SessionAuthentication]
   permission_classes = [IsBuyer]
+
+  def get(self, request, pk=None, format=None):
+    id = pk
+    if id is not None:
+       order = Order.objects.get(pk=id)
+       serializer = OrderSerializer(order)
+       return Response (serializer.data)
+        
+    product = order.objects.all()
+    serializer = OrderSerializer(product,many=True)
+    return Response(serializer.data)
   
   def post(self,request, format=None):
     serializer = OrderSerializer(data= request.data)
@@ -114,13 +125,31 @@ class OrderView(APIView):
       serializer.save()
       return Response({'message':'order add succesfully'},status=status.HTTP_201_CREATED)
     return Response({'message':'order does not add'},status=status.HTTP_400_BAD_REQUEST)
+  
+  def put(self, request,pk, format=None):
+    id = pk
+    order = Order.objects.get(pk=id)
+    serializer = OrderSerializer(order, data= request.data)
+    if serializer.is_valid():
+      serializer.save()
+      return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
+    return Response ({'message':'Only valid user can update data'}, status= status.HTTP_400_BAD_REQUEST) 
+  
+  def patch(self, request, pk, format=None):
+    id = pk
+    order = Order.objects.get(pk=id)
+    serializer = OrderSerializer(order, data = request.data, partial = True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
+    return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
 
   def delete(self, request, pk, format= None):
     buy = Order.objects.get('buyer')
     if request.user == buy:
       id =pk
       order = Order.objects.get(pk=id)
-      serializer = ProductSerializer(order)
+      serializer = OrderSerializer(order)
       if serializer.is_valid():
         serializer.delete()
         return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
@@ -129,9 +158,4 @@ class OrderView(APIView):
   
   
   
-class OrderAPIView(APIView):
-    permission_classes = [IsSeller]
-
-    def get(self, request, format= None):
-       order = Order .object.get('product')
        

@@ -27,6 +27,9 @@ class IsSeller(BasePermission):
 
 
 class IsBuyer(permissions.BasePermission):
+
+
+    message = "You must have a Buyer User_type."
     def has_permission(self, request, view):
         authenticated = bool(request.user and request.user.is_authenticated)
         if not authenticated:
