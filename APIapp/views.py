@@ -6,7 +6,7 @@ from .models import CustomUser,Product,Order
 from .serializers import CustomUserSerializer,ProductSerializer,OrderSerializer
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .permission import IsSeller,IsBuyer,IsSellerUniqueuser
 from .pagination import Mypagenumberpagination
 from django.contrib.auth import authenticate, login,logout
@@ -27,7 +27,10 @@ class RegistrationView(generics.CreateAPIView):
         user.save()
 
         return Response({'message': 'User registered successfully'}, status=HTTP_201_CREATED)
-    
+
+
+
+
 
 class LoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -43,14 +46,35 @@ class LoginView(views.APIView):
             return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-        
+        \
+
+
+
 class LogoutView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         logout(request)  # Log the user out
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
-    
+
+
+
+
+
+class ProductListView(APIView):
+   authentication_classes = [SessionAuthentication]
+   permission_classes = [IsAuthenticatedOrReadOnly]
+   pagination_class = Mypagenumberpagination
+   def get(self, request, pk=None, format=None):
+    product = Product.objects.all()
+    serializer = ProductSerializer(product,many=True)
+    return Response(serializer.data)
+
+
+
+
+
+
 
 class ProductView(APIView):
   authentication_classes = [SessionAuthentication]
@@ -61,22 +85,21 @@ class ProductView(APIView):
     if id is not None:
        product = Product.objects.get(pk=id)
        serializer = ProductSerializer(product)
-       return Response (serializer.data)
-       
+       return Response (serializer.data)       
         
     product = Product.objects.all()
+    product = product.filter(seller = request.user)
     serializer = ProductSerializer(product,many=True)
     return Response(serializer.data)
   
   def post(self,request, format=None):
     serializer = ProductSerializer(data= request.data)
     if serializer.is_valid():
-      serializer.save(seller = request.user)
+      serializer.validated_data['seller'] = request.user
+      serializer.save()
       return Response({'message':'product add succesfully'},status=status.HTTP_201_CREATED)
     return Response({'message':'Product does not add'},status=status.HTTP_400_BAD_REQUEST)
 
-
-  
   def put(self, request,pk, format=None):
     id = pk
     product = Product.objects.get(pk=id)
@@ -87,16 +110,16 @@ class ProductView(APIView):
     return Response ({'message':'Only valid user can update data'}, status= status.HTTP_400_BAD_REQUEST) 
   
   def patch(self, request, pk, format=None):
-    id = pk
-    product = Product.objects.get(pk=id)
-    serializer = ProductSerializer(product, data = request.data, partial = True)
-    if serializer.is_valid():
-      serializer.save()
-      return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
-    return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
+    if Product.seller == request.user:
+      id = pk
+      product = Product.objects.get(pk=id)
+      serializer = ProductSerializer(product, data = request.data, partial = True)
+      if serializer.is_valid():
+        serializer.save()
+        return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
+      return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
+    return Response ({'message':'Not a valid user'}, status= status.HTTP_400_BAD_REQUEST)
  
-  
-
   def delete(self, request, pk, format= None):
     id =pk
     product = Product.objects.get(pk=id)
@@ -105,6 +128,13 @@ class ProductView(APIView):
       serializer.delete()
       return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
     return Response({"message":'Data is not valid'})    
+
+
+
+
+
+
+
 
 
 class OrderView(APIView):
@@ -118,8 +148,9 @@ class OrderView(APIView):
        serializer = OrderSerializer(order)
        return Response (serializer.data)
         
-    product = order.objects.all()
-    serializer = OrderSerializer(product,many=True)
+    order = Order.objects.all()
+    order = order.filter(buyer = request.user)
+    serializer = OrderSerializer(order,many=True)
     return Response(serializer.data)
   
   def post(self,request, format=None):
@@ -148,17 +179,52 @@ class OrderView(APIView):
     return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
 
   def delete(self, request, pk, format= None):
-    buy = Order.objects.get('buyer')
-    if request.user == buy:
-      id =pk
-      order = Order.objects.get(pk=id)
-      serializer = OrderSerializer(order)
-      if serializer.is_valid():
-        serializer.delete()
-        return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
-      return Response({"message":'Data is not valid'})
-    return Response({'message':'Valid buyer only deleted their data'})   
+    id =pk
+    order = Order.objects.get(pk=id)
+    serializer = OrderSerializer(order)
+    if serializer.is_valid():
+      serializer.delete()
+      return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
+    return Response({"message":'Data is not valid'})
   
-  
-  
-       
+
+
+
+
+class SellerOrderView(APIView):
+    def get(self, request, product_id, format=None):
+        # Retrieve all orders associated with the product owned by the seller
+        orders = Order.objects.filter(product__id=product_id, product__seller=request.user)
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+
+class SellerOrderDetailView(APIView):
+    def put(self, request, order_id, format=None):
+        try:
+            # Retrieve the order if it exists and is associated with the seller's product
+            order = Order.objects.get(id=order_id, product__seller=request.user)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Update the order status based on the request data
+        serializer = OrderSerializer(order, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class SellerTotalRevenueView(APIView):
+    def get(self, request, format=None):
+        # Retrieve all accepted orders associated with the seller's products
+        accepted_orders = Order.objects.filter(product__seller=request.user, status='accepted')
+
+        # Calculate the total revenue
+        total_revenue = sum(order.product.price for order in accepted_orders)
+
+        return Response({'total_revenue': total_revenue}, status=status.HTTP_200_OK)

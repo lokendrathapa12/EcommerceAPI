@@ -24,11 +24,14 @@ class Product(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
+        ('Pending','Pending'),
         ('Accepted','Accepted'),
         ('Rejectes','Rejected'),
     )
     buyer = models.ForeignKey(CustomUser,on_delete=models.CASCADE)
     product = models.ForeignKey(Product,on_delete=models.CASCADE)
     order_quantity = models.IntegerField()
-    status = models.CharField(max_length=50,choices=STATUS_CHOICES,default='Accepted')
+    status = models.CharField(max_length=50,choices=STATUS_CHOICES,default='Pending')
     
+
+

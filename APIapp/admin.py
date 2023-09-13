@@ -12,4 +12,5 @@ class ProductAdminModel(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdminModel(admin.ModelAdmin):
-    list_display = ['id','buyer','product','status']
+    list_display = ['id','buyer','product','order_quantity']
+

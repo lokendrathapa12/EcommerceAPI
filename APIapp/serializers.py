@@ -18,8 +18,5 @@ class ProductSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ['buyer','product','order_quantity']
+        fields = ['buyer','product','order_quantity','status']
 
-class OrderCheckSerializer(serializers.ModelSerializer):
-    class Meta:
-        fields = ['status']
