@@ -5,7 +5,7 @@ from rest_framework.status import HTTP_201_CREATED
 from .models import CustomUser,Product,Order
 from .serializers import CustomUserSerializer,ProductSerializer,OrderSerializer
 from rest_framework.views import APIView
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .permission import IsSeller,IsBuyer,IsSellerUniqueuser
 from .pagination import Mypagenumberpagination
@@ -62,7 +62,7 @@ class LogoutView(views.APIView):
 
 
 class ProductListView(APIView):
-   authentication_classes = [SessionAuthentication]
+   authentication_classes = [TokenAuthentication]
    permission_classes = [IsAuthenticatedOrReadOnly]
    pagination_class = Mypagenumberpagination
    def get(self, request, pk=None, format=None):
@@ -77,7 +77,7 @@ class ProductListView(APIView):
 
 
 class ProductView(APIView):
-  authentication_classes = [SessionAuthentication]
+  authentication_classes = [TokenAuthentication]
   permission_classes = [IsSeller]
   pagination_class = Mypagenumberpagination
   def get(self, request, pk=None, format=None):
@@ -138,7 +138,7 @@ class ProductView(APIView):
 
 
 class OrderView(APIView):
-  authentication_classes = [SessionAuthentication]
+  authentication_classes = [TokenAuthentication]
   permission_classes = [IsBuyer]
 
   def get(self, request, pk=None, format=None):
@@ -192,6 +192,8 @@ class OrderView(APIView):
 
 
 class SellerOrderView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsSeller]
     def get(self, request, product_id, format=None):
         # Retrieve all orders associated with the product owned by the seller
         orders = Order.objects.filter(product__id=product_id, product__seller=request.user)
@@ -204,6 +206,8 @@ class SellerOrderView(APIView):
 
 
 class SellerOrderDetailView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsSeller]
     def put(self, request, order_id, format=None):
         try:
             # Retrieve the order if it exists and is associated with the seller's product
@@ -219,7 +223,12 @@ class SellerOrderDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+
+    
+
 class SellerTotalRevenueView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsSeller]
     def get(self, request, format=None):
         # Retrieve all accepted orders associated with the seller's products
         accepted_orders = Order.objects.filter(product__seller=request.user, status='accepted')
