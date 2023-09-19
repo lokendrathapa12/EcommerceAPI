@@ -7,10 +7,10 @@ class CustomUserAdminModel(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdminModel(admin.ModelAdmin):
-    list_display = ['id','name','description','quantity','price','seller']
+    list_display = ['id','name','description','price','seller']
 
 
 @admin.register(Order)
 class OrderAdminModel(admin.ModelAdmin):
-    list_display = ['id','buyer','product','order_quantity']
+    list_display = ['id','buyer','product','order_quantity','status']
 

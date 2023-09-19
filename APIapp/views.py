@@ -46,8 +46,6 @@ class LoginView(views.APIView):
             return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-        \
-
 
 
 class LogoutView(views.APIView):
@@ -94,6 +92,7 @@ class ProductView(APIView):
   
   def post(self,request, format=None):
     serializer = ProductSerializer(data= request.data)
+    #serializer = ProductSerializer(seller=request.user)
     if serializer.is_valid():
       serializer.validated_data['seller'] = request.user
       serializer.save()
@@ -102,7 +101,7 @@ class ProductView(APIView):
 
   def put(self, request,pk, format=None):
     id = pk
-    product = Product.objects.get(pk=id)
+    product = Product.objects.get(pk=id, product__seller=request.user)
     serializer = ProductSerializer(product, data= request.data)
     if serializer.is_valid():
       serializer.save()
@@ -110,19 +109,17 @@ class ProductView(APIView):
     return Response ({'message':'Only valid user can update data'}, status= status.HTTP_400_BAD_REQUEST) 
   
   def patch(self, request, pk, format=None):
-    if Product.seller == request.user:
-      id = pk
-      product = Product.objects.get(pk=id)
-      serializer = ProductSerializer(product, data = request.data, partial = True)
-      if serializer.is_valid():
-        serializer.save()
-        return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
-      return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
-    return Response ({'message':'Not a valid user'}, status= status.HTTP_400_BAD_REQUEST)
+    id = pk
+    product = Product.objects.get(pk=id, product__seller=request.user)
+    serializer = ProductSerializer(product, data = request.data, partial = True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
+    return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
  
   def delete(self, request, pk, format= None):
     id =pk
-    product = Product.objects.get(pk=id)
+    product = Product.objects.get(pk=id, product__seller=request.user)
     serializer = ProductSerializer(product)
     if serializer.is_valid():
       serializer.delete()
@@ -162,32 +159,21 @@ class OrderView(APIView):
   
   def put(self, request,pk, format=None):
     id = pk
-    order = Order.objects.get(pk=id)
-    serializer = OrderSerializer(order, data= request.data)
+    order = Order.objects.get(pk=id, order__buyer=request.user)
+    serializer = ProductSerializer(order, data= request.data)
     if serializer.is_valid():
       serializer.save()
       return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
     return Response ({'message':'Only valid user can update data'}, status= status.HTTP_400_BAD_REQUEST) 
   
-  def patch(self, request, pk, format=None):
-    id = pk
-    order = Order.objects.get(pk=id)
-    serializer = OrderSerializer(order, data = request.data, partial = True)
-    if serializer.is_valid():
-      serializer.save()
-      return Response({'message':'Data update succesfully'}, status=status.HTTP_201_CREATED)
-    return Response ({'message':'Data is not valid'}, status= status.HTTP_400_BAD_REQUEST)
-
   def delete(self, request, pk, format= None):
     id =pk
-    order = Order.objects.get(pk=id)
-    serializer = OrderSerializer(order)
+    order = Order.objects.get(pk=id, order__buyer=request.user)
+    serializer = ProductSerializer(order)
     if serializer.is_valid():
       serializer.delete()
       return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
-    return Response({"message":'Data is not valid'})
-  
-
+    return Response({"message":'Data is not valid'})   
 
 
 
@@ -204,23 +190,24 @@ class SellerOrderView(APIView):
 
 
 
-
 class SellerOrderDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsSeller]
-    def put(self, request, order_id, format=None):
-        try:
-            # Retrieve the order if it exists and is associated with the seller's product
-            order = Order.objects.get(id=order_id, product__seller=request.user)
-        except Order.DoesNotExist:
-            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Update the order status based on the request data
-        serializer = OrderSerializer(order, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+  authentication_classes = [TokenAuthentication]
+  permission_classes = [IsSeller]
+  def put(self, request, order_id, format=None):
+    order = Order.objects.get(id=order_id, product__seller=request.user)
+    serializer = OrderSerializer(order, data=request.data, partial=True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+  def delete(self, request, order_id, format=None):
+    order = Order.objects.get(id=order_id, product__seller=request.user)
+    serializer = OrderSerializer(order, data=request.data, partial=True)
+    if serializer.is_valid():
+      serializer.delete()
+      return Response({'message':'Data deleted succesfully'}, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
@@ -231,9 +218,9 @@ class SellerTotalRevenueView(APIView):
     permission_classes = [IsSeller]
     def get(self, request, format=None):
         # Retrieve all accepted orders associated with the seller's products
-        accepted_orders = Order.objects.filter(product__seller=request.user, status='accepted')
+        accepted_orders = Order.objects.filter(product__seller=request.user, status='Accepted')
 
         # Calculate the total revenue
-        total_revenue = sum(order.product.price for order in accepted_orders)
+        total_revenue = sum(Order.product.price for Order in accepted_orders)
 
         return Response({'total_revenue': total_revenue}, status=status.HTTP_200_OK)

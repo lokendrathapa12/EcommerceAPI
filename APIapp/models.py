@@ -9,11 +9,11 @@ class CustomUser(AbstractUser):
     USER_TYPE_CHOICES = (
         ('Buyer', 'Buyer'),
         ('Seller', 'Seller'),
-        ('Admin','Admin'),
     )
 
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
 
+#Auto generate Token whr=en we register new account
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -32,7 +32,6 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 class Product(models.Model):
     name = models.CharField(max_length=150)
     description = models.CharField(max_length=500)
-    quantity = models.IntegerField()
     price = models.BigIntegerField()
     seller = models.ForeignKey(CustomUser,on_delete=models.CASCADE)
 
